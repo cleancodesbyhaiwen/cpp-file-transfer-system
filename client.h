@@ -61,7 +61,6 @@ void Client::listenForResponse()
         this->readFromUDPSocket(response);
         std::vector<std::string> words;
         splitString(words, response, ' ');
-
         if(words[0]=="registration"){
             if(words[1]=="success"){
                 std::cout<<" Welcome, you are registered! "<<std::endl;
@@ -72,14 +71,14 @@ void Client::listenForResponse()
             if(words[1]=="success"){
                 std::cout<<" Offer Message received by Server. "<<std::endl;
             }
-        }else if(response[0]=='*'){
-            this->table = std::string(response);
-            std::cout<<response<<std::endl;
+        }else if(words[0]=="table"){
+            this->table = std::string(response).substr(6,strlen(response)-strlen("table "));
             std::cout<<" [Client table updated.]"<<std::endl;
             // send ACK to server
             this->sendUDPMessage("Updated Table Received", this->server_addr);
         }
-        std::cout<<" <<< "<<std::endl;
+        std::cout << " >>> ";
+        std::cout << std::flush;
     }
 }
 
@@ -124,7 +123,7 @@ void Client::displayTable()
         for(auto entry = entries.begin() + 1;entry != entries.end();entry++){
             std::vector<std::string> elements;
             splitString(elements, *entry, ' ');
-            std::cout<<"================="<<std::endl;
+            std::cout<<"===================="<<std::endl;
             std::cout<<"Client Name: "<<elements[0]<<std::endl;
             std::cout<<"Client IP: "<<elements[1]<<std::endl;
             std::cout<<"Client Port: "<<elements[2]<<std::endl;
@@ -133,6 +132,7 @@ void Client::displayTable()
                 std::cout<<elements[i]<<" ";
             }
             std::cout<<std::endl;
+            std::cout<<"===================="<<std::endl;
         }
     }else{
         std::cout<<" >>> [No files available for download at the moment.]"<<std::endl;

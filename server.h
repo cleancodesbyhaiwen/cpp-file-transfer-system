@@ -65,6 +65,7 @@ void Server::handleRequest()
             if(this->handleRegistration(request,inet_ntoa(client_addr.sin_addr),ntohs(client_addr.sin_port),client_addr))
             {
                 this->sendMessage("registration success", client_addr);
+                this->sendTable(client_addr);
             }else{
                 this->sendMessage("registration fail", client_addr);
             }
@@ -125,7 +126,7 @@ bool Server::handleFileOffer(std::vector<std::string> request, char* CLIENT_IP, 
 // send current version of table to a client
 void Server::sendTable(sockaddr_in client_addr)
 {
-    std::string table; 
+    std::string table = "table "; 
     for(const auto& client : this->clients){
         if(client->filenames.size()!=0){
             table += "*" + std::string(client->CLIENT_NAME) + " ";

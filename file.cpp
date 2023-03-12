@@ -33,13 +33,13 @@ int main(int argc, char** argv)
         client->setServerAddr(argv[3], atoi(argv[4]));
 
         std::cout<<"You are in **CLIENT** mode"<<std::endl;
-        std::cout<<"=================="<<std::endl;
+        std::cout<<"====================="<<std::endl;
         std::cout<<"Cient Name: " << client->CLIENT_NAME<<std::endl;
         std::cout<<"Server IP: " << argv[3]<<std::endl;
         std::cout<<"Server PORT: " << argv[4]<<std::endl;
         std::cout<<"Client UDP PORT: " << client->UDP_PORT<<std::endl;
         std::cout<<"Client TCP PORT: " << client->TCP_PORT<<std::endl;
-        std::cout<<"=================="<<std::endl;
+        std::cout<<"====================="<<std::endl;
 
         client->createSocket();
         client->bindSocketToPort(&client->client_addr_udp, client->UDP_PORT,client->client_fd_udp);
