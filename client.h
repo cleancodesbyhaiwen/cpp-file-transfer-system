@@ -32,7 +32,7 @@ public:
     void setDir(const char* dir);
     void offerFile(std::string words);
     void displayTable();
-    void listenForUpdate();
+    void listenForResponse();
 
     char* CLIENT_NAME;
     sockaddr_in client_addr_udp;
@@ -49,17 +49,45 @@ public:
     std::string table;
 };
 
+// This is a while loop that constantly listen for response from server
+// 1. registration success/fail 
+// 2. offer file success
+// 3. receive updated table
+void Client::listenForResponse()
+{
+    char response[CLIENT_BUFFER_SIZE];
+    while(true){
+        memset(response, 0, sizeof(response));
+        this->readFromUDPSocket(response);
+        std::vector<std::string> words;
+        splitString(words, response, ' ');
+
+        if(words[0]=="registration"){
+            if(words[1]=="success"){
+                std::cout<<" Welcome, you are registered! "<<std::endl;
+            }else if(words[1]=="fail"){
+                std::cout<<" Registration failed. "<<std::endl;
+            }
+        }else if(words[0]=="offer"){
+            if(words[1]=="success"){
+                std::cout<<" Offer Message received by Server. "<<std::endl;
+            }
+        }else if(response[0]=='*'){
+            this->table = std::string(response);
+            std::cout<<response<<std::endl;
+            std::cout<<" [Client table updated.]"<<std::endl;
+            // send ACK to server
+            this->sendUDPMessage("Updated Table Received", this->server_addr);
+        }
+        std::cout<<" <<< "<<std::endl;
+    }
+}
+
 // send registration request to server
 void Client::registerAccount()
 {
     std::string message = "registration " + std::string(this->CLIENT_NAME) + " " + std::to_string(this->TCP_PORT);
     sendUDPMessage(message.c_str(), this->server_addr);
-    char reply[CLIENT_BUFFER_SIZE];
-    this->readFromUDPSocket(reply);
-    std::cout<<" >>> "<< reply <<std::endl;
-    if(reply[0]=='S'){
-        exit(1);
-    }
 }
 
 // Send file offering request to server
@@ -69,17 +97,6 @@ void Client::offerFile(std::string words){
         return;
     }
     this->sendUDPMessage(words.c_str(), this->server_addr);
-    // Accept ACK
-    char reply[CLIENT_BUFFER_SIZE];
-    this->readFromUDPSocket(reply);
-    std::cout<<" >>> "<< reply <<std::endl;
-    // Accept table
-    char table[CLIENT_BUFFER_SIZE];
-    this->readFromUDPSocket(table);
-    this->table = std::string(table);
-    std::cout<<" >>> [Client table updated.]"<<std::endl;
-    // send ACK to server
-    this->sendUDPMessage("Updated Table Received", this->server_addr);
 }
 
 // set the file offering directory
@@ -125,12 +142,6 @@ void Client::displayTable()
 // Create the TCP and UDP socket
 void Client::createSocket()
 {
-    // set timeout to 5ms
-    struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = 5000;
-    setsockopt(this->client_fd_udp, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
-
     this->client_fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
     if (client_fd_udp == -1) {
         std::cerr << "Failed to create UDP socket" << std::endl;
@@ -193,18 +204,5 @@ void Client::readFromUDPSocket(char* reply)
     std::strcpy(reply, buffer);
 }
 
-void Client::listenForUpdate()
-{
-    char table[CLIENT_BUFFER_SIZE];
-    while(true){
-        memset(table, 0, sizeof(table));
-        this->readFromUDPSocket(table);
-        if(table[0]=='*'){
-            this->table = std::string(table);
-            std::cout<<" >>> [Client table updated.]"<<std::endl;
-            // send ACK to server
-            this->sendUDPMessage("Updated Table Received", this->server_addr);
-        }
-    }
-}
+
 

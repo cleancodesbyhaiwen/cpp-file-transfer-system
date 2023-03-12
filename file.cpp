@@ -45,6 +45,8 @@ int main(int argc, char** argv)
         client->bindSocketToPort(&client->client_addr_udp, client->UDP_PORT,client->client_fd_udp);
         client->registerAccount();
 
+        std::thread t(&Client::listenForResponse, client);
+
         while(true)
         {
             std::string command;

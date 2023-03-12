@@ -1,3 +1,9 @@
 ./file -s 1024
 
 ./file -c Haiwen 127.0.0.1 1024 666 888
+
+    // set timeout to 5ms
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 5000;
+    setsockopt(this->client_fd_udp, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));

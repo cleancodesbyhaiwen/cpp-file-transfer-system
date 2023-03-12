@@ -64,18 +64,17 @@ void Server::handleRequest()
         {
             if(this->handleRegistration(request,inet_ntoa(client_addr.sin_addr),ntohs(client_addr.sin_port),client_addr))
             {
-                this->sendMessage("Welcome, you are registered!", client_addr);
+                this->sendMessage("registration success", client_addr);
             }else{
-                this->sendMessage("Sorry, we cannot resgiter you. Username already taken", client_addr);
+                this->sendMessage("registration fail", client_addr);
             }
         }
         // Filer Offering
         else if(request[0]=="offer")
         {
             if(this->handleFileOffer(request,inet_ntoa(client_addr.sin_addr),ntohs(client_addr.sin_port))){
-                std::cout<<"sddddddddddddddddddd"<<std::endl;
-                this->sendMessage("Offer Message received by Server.", client_addr);
-                broadcastTable();
+                this->sendMessage("offer success", client_addr);
+                this->broadcastTable();
             }
         }
     }
@@ -129,7 +128,7 @@ void Server::sendTable(sockaddr_in client_addr)
     std::string table; 
     for(const auto& client : this->clients){
         if(client->filenames.size()!=0){
-            table = "*" + std::string(client->CLIENT_NAME) + " ";
+            table += "*" + std::string(client->CLIENT_NAME) + " ";
             table += std::string(client->CLIENT_IP) + " " + std::to_string(client->TCP_PORT);
         }
         for(const auto& file : client->filenames){
