@@ -140,10 +140,10 @@ void Server::sendTable(sockaddr_in client_addr)
     for(const auto& client : this->clients){
         if(client->filenames.size()!=0){
             table += "*" + std::string(client->CLIENT_NAME) + " ";
-            table += std::string(client->CLIENT_IP) + " " + std::to_string(client->TCP_PORT);
+            table += std::string(client->CLIENT_IP) + " " + std::to_string(client->TCP_PORT) + " ";
         }
         for(const auto& file : client->filenames){
-            table += (" " + file);
+            table += (file + " ");
         }
     }
     sendMessage(table, client_addr);

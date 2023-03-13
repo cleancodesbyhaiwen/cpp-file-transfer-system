@@ -119,7 +119,12 @@ void Client::requestFile(std::string filename, std::string client_name)
     uint16_t SERVER_PORT;
     const char* SERVER_IP;
     std::vector<std::string> words;
+
     splitString(words, this->table, ' ');
+    std::cout<<this->table<<std::endl;
+    for(int i = 0;i < words.size();i++){
+        std::cout<<"0"<<words[i]<<"0"<<std::endl;
+    }
     auto result = std::find(words.begin(), words.end(), "*"+client_name);
     if (result != words.end()) {
         SERVER_IP = words[static_cast<int>(std::distance(words.begin(), result))+1].c_str();
@@ -129,6 +134,7 @@ void Client::requestFile(std::string filename, std::string client_name)
         std::cout << " >>> The client name cannot be found in the table" << std::endl;
         return;
     }
+
     // constructing the address of the serving peer using IP and port
     sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));
@@ -243,7 +249,8 @@ void Client::setDir(const char* dir)
 
 /*
     display current version of file table
-    table entry format: "client_name client_IP client_tcp_port file1 file2 ..."
+    table format: "*haiwen 127.0.0.1 50013 h1.txt h2.txt *peter 127.0.0.1 50015 p1.txt"
+    entries are seperated by "*", elements in entries are seperated by [SPACE]
 */
 void Client::displayTable()
 {
