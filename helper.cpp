@@ -1,5 +1,3 @@
-#pragma once
-
 #include <string>
 #include <iostream>
 #include <netinet/in.h>
@@ -8,6 +6,8 @@
 #include <sstream>
 #include <dirent.h>
 #include <sys/stat.h>
+
+#include "helper.hpp"
 
 // Check whether a file exist given its file path
 bool fileExists(const std::string& filename)
@@ -46,7 +46,7 @@ const char* determineMode(char** argv)
 }
 
 // Check whether command line arguments are valid
-bool clientModeArgumentsCheck(int argc, char** argv)
+void clientModeArgumentsCheck(int argc, char** argv)
 {
     if(argc != 7){
         std::cerr<<"Incorrect number of arguments"<<std::endl;
@@ -65,7 +65,7 @@ bool clientModeArgumentsCheck(int argc, char** argv)
 }
 
 // Check whether command line arguments are valid
-bool serverModeArgumentsCheck(int argc, char** argv)
+void serverModeArgumentsCheck(int argc, char** argv)
 {
     if(argc != 3){
         std::cerr<<"Incorrect number of arguments"<<std::endl;

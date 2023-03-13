@@ -20,9 +20,9 @@
 #include <string>
 #include <thread>
 
-#include "client.h"
-#include "server.h"
-#include "helper.h"
+#include "client.hpp"
+#include "server.hpp"
+#include "helper.hpp"
 
 int main(int argc, char** argv)
 {
