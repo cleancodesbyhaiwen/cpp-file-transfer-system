@@ -7,6 +7,18 @@
 #include <vector>
 #include <sstream>
 #include <dirent.h>
+#include <sys/stat.h>
+
+// Check whether a file exist given its file path
+bool fileExists(const std::string& filename)
+{
+    struct stat buf;
+    if (stat(filename.c_str(), &buf) != -1)
+    {
+        return true;
+    }
+    return false;
+}
 
 // Check whether an IP address input is valid
 bool isValidIPAddress(const char* ipAddress) {

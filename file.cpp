@@ -1,3 +1,16 @@
+/*
+ * Program Name: CPP File Sharing System
+ * Author: Haiwen Zhang
+ * Date Created: 2023/3/10
+ * Description: 
+ *         This program runs in two modes: server and client
+ *         Server: The server accept registration request and file offerings from client
+ *                 It maintains a table of files and its owner's IP and port number.
+ *                 It broadcast to all clients registered whenever the table is updated.
+ *         Client: The client can consult with the table and initiate file request to the peers
+ *                 It also constantly waits for peers' requests and send the files
+ * Permission: You are free to use this program.
+ */
 #include <iostream>
 #include <cstring>
 #include <sys/socket.h>
@@ -11,43 +24,39 @@
 #include "server.h"
 #include "helper.h"
 
-
 int main(int argc, char** argv)
 {
     const char* MODE = determineMode(argv);
     if(std::strcmp(MODE, "SERVER")==0)
     {
-        serverModeArgumentsCheck(argc,argv);
         std::cout<<"You are in **SERVER** mode"<<std::endl;
+
+        serverModeArgumentsCheck(argc,argv);
         Server* server = new Server(argv[2]);
         server->createSocket();
         server->bindSocketToPort();
         server->handleRequest();
+
+        // close socket and free memory
         close(server->server_fd);
+        delete server;
+
         return 0;
     }
     else if(std::strcmp(MODE, "CLIENT")==0)
     {
+        std::cout<<"You are in **CLIENT** mode"<<std::endl;
+
         clientModeArgumentsCheck(argc, argv);
         Client* client = new Client(argv[5],argv[6], argv[2]);
         client->setServerAddr(argv[3], atoi(argv[4]));
-
-        std::cout<<"You are in **CLIENT** mode"<<std::endl;
-        std::cout<<"====================="<<std::endl;
-        std::cout<<"Cient Name: " << client->CLIENT_NAME<<std::endl;
-        std::cout<<"Server IP: " << argv[3]<<std::endl;
-        std::cout<<"Server PORT: " << argv[4]<<std::endl;
-        std::cout<<"Client UDP PORT: " << client->UDP_PORT<<std::endl;
-        std::cout<<"Client TCP PORT: " << client->TCP_PORT<<std::endl;
-        std::cout<<"====================="<<std::endl;
-
         client->createSocket();
         client->bindSocketToPort(&client->client_addr_udp, client->UDP_PORT,client->client_fd_udp);
-        //client->bindSocketToPort(&client->client_addr_tcp, client->TCP_PORT,client->client_fd_tcp);
+        client->bindSocketToPort(&client->client_addr_tcp, client->TCP_PORT,client->client_fd_tcp);
         client->registerAccount();
 
-        std::thread t(&Client::listenForResponse, client);
-        std::thread t2(&Client::handleTCPConnection, client);
+        std::thread t1(&Client::handleServerResponse, client);
+        std::thread t2(&Client::handlePeerRequest, client);
 
         while(true)
         {
@@ -65,16 +74,22 @@ int main(int argc, char** argv)
             else if(words[0]=="list"){
                 client->displayTable();
             }else if(words[0]=="request"){
-                if(words.size()!=3) std::cout<<" >>> Incorrect Numebr of arguments"<<std::endl;
-                else client->requestFile(words[1], words[2]);
+                try {
+                    client->requestFile(words[1], words[2]);
+                }
+                catch (std::exception& e) {
+                    std::cout << " >>> Usage: request filename client_name" << std::endl;
+                }
             }
             else{
-                std::cout<<"Your command cannot be understand"<<std::endl;
+                std::cout<<" >>> Your command cannot be understand"<<std::endl;
             }
         }
-        // Close the sockets
+        // Close the sockets and free memory
         close(client->client_fd_udp);
         close(client->client_fd_tcp);
+        delete client;
+
         return 0;
     }
 }

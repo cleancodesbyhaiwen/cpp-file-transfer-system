@@ -39,8 +39,10 @@ public:
     void broadcastTable();
 };
 
-// This is the loop that constantly accpet and handle user request
-// The user request can either be REGISTRATION or FILE OFFERING
+/*
+    This is the loop that constantly accpet and handle user request
+    The user request can either be REGISTRATION or FILE OFFERING
+*/
 void Server::handleRequest()
 {
     char buffer[SERVER_BUFFER_SIZE];
@@ -81,7 +83,10 @@ void Server::handleRequest()
     }
 }
 
-// Add client to this->clients
+
+/*
+    Add client to this->clients
+*/
 bool Server::handleRegistration(std::vector<std::string> request, char* CLIENT_IP, uint16_t CLIENT_UDP_PORT,sockaddr_in client_addr)
 {
     std::string CLIENT_NAME = request[1];
@@ -106,7 +111,10 @@ bool Server::handleRegistration(std::vector<std::string> request, char* CLIENT_I
     return true;
 }
 
-// Add filenames offered by client to client->filenames 
+
+/*
+    Add filenames offered by client to client->filenames 
+*/
 bool Server::handleFileOffer(std::vector<std::string> request, char* CLIENT_IP, uint16_t UDP_PORT)
 {
     Client* client;
@@ -123,7 +131,9 @@ bool Server::handleFileOffer(std::vector<std::string> request, char* CLIENT_IP, 
     return true;
 }
 
-// send current version of table to a client
+/*
+    send current version of table to a client
+*/
 void Server::sendTable(sockaddr_in client_addr)
 {
     std::string table = "table "; 
@@ -139,7 +149,9 @@ void Server::sendTable(sockaddr_in client_addr)
     sendMessage(table, client_addr);
 }
 
-// send current version of table to all online clients
+/*
+    send current version of table to all online clients
+*/
 void Server::broadcastTable()
 {
     for(const auto& client : this->clients){

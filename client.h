@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <sstream>
 #include <fstream>
+#include <algorithm>
 
 #include "helper.h"
 
@@ -23,6 +24,8 @@ public:
     }
     ~Client()
     {
+        delete[] this->CLIENT_NAME;
+        delete[] this->dir;
     }
     void createSocket();
     void bindSocketToPort(sockaddr_in* client_addr, uint16_t PORT, int fd);
@@ -33,181 +36,145 @@ public:
     void setDir(const char* dir);
     void offerFile(std::string words);
     void displayTable();
-    void listenForResponse();
+    void handleServerResponse();
     void requestFile(std::string filename, std::string client_name);
-    void handleTCPConnection();
+    void handlePeerRequest();
 
     char* CLIENT_NAME;
+    char* dir;
     sockaddr_in client_addr_udp;
     sockaddr_in client_addr_tcp;
     int client_fd_udp;
     int client_fd_tcp;
     uint16_t UDP_PORT;
     uint16_t TCP_PORT;
+    std::string table;
+    sockaddr_in server_addr;
+    // For server use
     bool status;
     const char* CLIENT_IP;
-    sockaddr_in server_addr;
-    const char* dir;
     std::vector<std::string> filenames;
-    std::string table;
 };
 
-void Client::handleTCPConnection()
+/*
+    This is the function constantly listen on TCP welcome socket 
+    and handle peer's file request
+*/
+void Client::handlePeerRequest()
 {
-    int server_fd, new_socket, valread;
-    struct sockaddr_in address;
-    int addrlen = sizeof(address);
-    char buffer[1024] = {0};
-
-    // Create a socket file descriptor
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        std::cerr << "Socket creation failed" << std::endl;
-        exit(1);
-    }
-
-    // Set socket options to reuse address and port
-    int opt = 1;
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-        std::cerr << "Set socket options failed" << std::endl;
-        exit(1);
-    }
-
-    // Bind the socket to a specific address and port
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(this->TCP_PORT);
-    std::cout << "Server listening on port " << this->TCP_PORT << std::endl;
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        std::cerr << "Socket binding failed" << std::endl;
-        exit(1);
-    }
-
+    int new_socket, valread;
+    char buffer[CLIENT_BUFFER_SIZE];
+    int addrlen = sizeof(this->client_addr_tcp);
+    memset(buffer, 0, sizeof(buffer));
     // Listen for incoming connections
-    if (listen(server_fd, 3) < 0) {
+    if (listen(this->client_fd_tcp, 3) < 0) {
         std::cerr << "Socket listening failed" << std::endl;
         exit(1);
     }
-
-    std::cout << "Server listening on port " << 8000 << std::endl;
- 
     while(true){
-        if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+        // create scoket for serving file to peer
+        if ((new_socket = accept(this->client_fd_tcp, (struct sockaddr *)&this->client_addr_tcp, (socklen_t*)&addrlen)) < 0) {
             std::cerr << "Socket accept failed" << std::endl;
-            exit(0);
+            exit(1);
         }
-
-        // Read data from the client
+        // getting the file name requested
         valread = read(new_socket, buffer, 1024);
-        std::cout << "Received from client: " << buffer << std::endl;
-
-        std::ifstream file(buffer, std::ios::binary);
-        if (file) {
-            // If the requested file exists, send it to the other client
+        std::cout << "Received from client request for: " << buffer << std::endl;
+        std::string file_path = std::string(this->dir) + "/" + std::string(buffer);
+        // If the requested file exists, send it to the peer
+        if (fileExists(file_path)) {
+            std::ifstream file(file_path, std::ios::binary);
             while (file.good()) {
                 file.read(buffer, CLIENT_BUFFER_SIZE);
                 int bytesRead = file.gcount();
                 write(new_socket, buffer, bytesRead);
             }
             file.close();
-            const char* errorMsg = "File not found.";
-            write(new_socket, errorMsg, strlen(errorMsg));
-            std::cout << "11111111111 " << buffer << std::endl;
         } else {
-            // If the requested file doesn't exist, send an error message
             const char* errorMsg = "File not found.";
             write(new_socket, errorMsg, strlen(errorMsg));
-            std::cout << "222222222222 " << buffer << std::endl;
         }
-        
         memset(buffer, 0, sizeof(buffer));
         // Close the socket
         close(new_socket);
+        std::cout << " >>> ";
+        std::cout << std::flush;
     }   
 }
 
+/*
+    This function send file request to peer and receive file and store the file 
+    to the same directory
+*/
 void Client::requestFile(std::string filename, std::string client_name)
 {
+    // create the socket for requesting and receiving file
     int new_socket= socket(AF_INET, SOCK_STREAM, 0);
     if (new_socket == -1) {
-        std::cerr << "Failed to create socket." << std::endl;
+        std::cerr << "Failed to create new socket." << std::endl;
         exit(1);
     }
-
+    // Resolving the peer IP and port given his/her client nanme
+    // Also check if the file is indeed offered by him/her 
     uint16_t SERVER_PORT;
-    std::string SERVER_IP;
+    const char* SERVER_IP;
     std::vector<std::string> words;
     splitString(words, this->table, ' ');
-    for(int i = 0;i < words.size();i++){
-        if(words[i].substr(1,words[i].size()-1)==client_name){
-            SERVER_IP = words[i+1].c_str();
-            SERVER_PORT = std::stoi(words[i+2]);
-            break;
-        }
+    auto result = std::find(words.begin(), words.end(), "*"+client_name);
+    if (result != words.end()) {
+        SERVER_IP = words[static_cast<int>(std::distance(words.begin(), result))+1].c_str();
+        SERVER_PORT = std::stoi(words[static_cast<int>(std::distance(words.begin(), result))+2]);
     }
-
-    std::cout<<"IP is "<<SERVER_IP<<std::endl;
-    std::cout<<"Port is "<<SERVER_PORT<<std::endl;
+    else {
+        std::cout << " >>> The client name cannot be found in the table" << std::endl;
+        return;
+    }
+    // constructing the address of the serving peer using IP and port
     sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server_addr.sin_port = htons(50013);
-
-    // Connecting to the server
+    server_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    server_addr.sin_port = htons(SERVER_PORT);
+    // establish connection to the serving peer
     if (connect(new_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        std::cout<<"Connection Failed"<<std::endl;
-        exit(1);
+        std::cout<<" >>> Connection Failed, pelase try again"<<std::endl;
+        return;
+    }
+    // Sending the filename to the serving peer
+    send(new_socket, filename.c_str(), filename.size(), 0);
+    // Receiving the requested file from another client
+    int bytesReceived = 0;
+    int valread;
+    char buffer[CLIENT_BUFFER_SIZE];
+    memset(buffer, 0, sizeof(buffer));
+    std::ofstream file(filename, std::ios::binary);
+    while ((valread = read(new_socket, buffer, CLIENT_BUFFER_SIZE)) > 0) {
+        if(buffer[0]=='F'){
+            std::cout << " >>> The server cannot find the file you requested" << std::endl;
+            return;
+        }
+        file.write(buffer, valread);
+        bytesReceived += valread;
+    }
+    file.close();
+    if (bytesReceived == 0) {
+        std::cout << " >>> No response from peer or the file is empty." << std::endl;
+    } else {
+        std::cout << " >>> File received: " << filename << " (" << bytesReceived << " bytes)" << std::endl;
     }
 
-    // Requesting files from other clients
-    while (1) {
-        // Sending the filename to the server to be forwarded to other clients
-        send(new_socket, filename.c_str(), filename.size(), 0);
-        
-        // Receiving the requested file from another client
-        int bytesReceived = 0;
-        int valread;
-        char buffer[CLIENT_BUFFER_SIZE];
-        memset(buffer, 0, sizeof(buffer));
-        std::ofstream file(filename, std::ios::binary);
-        while ((valread = read(new_socket, buffer, CLIENT_BUFFER_SIZE)) > 0) {
-            file.write(buffer, valread);
-            bytesReceived += valread;
-        }
-        file.close();
-        
-        if (bytesReceived == 0) {
-            // If no bytes were received, the other client either closed the connection or there was an error
-            const char* errorMsg = "No response from peer.";
-            std::cout << errorMsg << std::endl;
-            exit(1);
-        } else {
-            std::cout << "File received: " << filename << " (" << bytesReceived << " bytes)" << std::endl;
-            exit(1);
-        }
-    
-        /*
-        char buffer[1024] = {0};
-        int bytes_received = recv(new_socket, buffer, 1024, 0);
-        if (bytes_received < 0) {
-            std::cerr << "Failed to receive message from server." << std::endl;
-            exit(1);
-        }
-
-        std::cout << "Received message from server: " << buffer << std::endl;
-        exit(1);
-        */
-
-    }
     // Close the socket
     close(new_socket);
 }
 
-// This is a while loop that constantly listen for response from server
-// 1. registration success/fail 
-// 2. offer file success
-// 3. receive updated table
-void Client::listenForResponse()
+
+/*
+    This is a while loop that constantly listen for response from server
+    1. registration success/fail 
+    2. offer file success
+    3. receive updated table
+*/
+void Client::handleServerResponse()
 {
     char response[CLIENT_BUFFER_SIZE];
     while(true){
@@ -236,14 +203,18 @@ void Client::listenForResponse()
     }
 }
 
-// send registration request to server
+/*
+    send registration request to server
+*/
 void Client::registerAccount()
 {
     std::string message = "registration " + std::string(this->CLIENT_NAME) + " " + std::to_string(this->TCP_PORT);
     sendUDPMessage(message.c_str(), this->server_addr);
 }
 
-// Send file offering request to server
+/*
+    Send file offering request to server
+*/
 void Client::offerFile(std::string words){
     if(this->dir==nullptr){
         std::cout<<" >>> Please set a dir for files to share before offering files"<<std::endl;
@@ -252,7 +223,9 @@ void Client::offerFile(std::string words){
     this->sendUDPMessage(words.c_str(), this->server_addr);
 }
 
-// set the file offering directory
+/*
+    set the file offering directory
+*/
 void Client::setDir(const char* dir)
 {
     if(dir==nullptr){
@@ -260,15 +233,18 @@ void Client::setDir(const char* dir)
         return;
     }
     if(directoryExists(dir)) {
-        this->dir = dir;
+        this->dir = (char*)malloc(sizeof(dir));
+        std::strncpy(this->dir, dir, sizeof(dir));
         std::cout << " >>> [Successfully set "<< dir <<" as the directory for searching offered files.]" << std::endl;
     } else {
         std::cout << " >>> [setdir failed: <dir> does not exist.]" <<std::endl;
     }
 }
 
-// display current version of file table
-// table entry format: "client_name client_IP client_tcp_port file1 file2 ..."
+/*
+    display current version of file table
+    table entry format: "client_name client_IP client_tcp_port file1 file2 ..."
+*/
 void Client::displayTable()
 {
     if(this->table.size() != 0){
@@ -293,7 +269,9 @@ void Client::displayTable()
     }
 }
 
-// Create the TCP and UDP socket
+/*
+    Create the TCP and UDP socket
+*/
 void Client::createSocket()
 {
     this->client_fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
@@ -306,9 +284,17 @@ void Client::createSocket()
         std::cerr << "Failed to create TCP socket" << std::endl;
         exit(1);
     }
+    // Set socket options to reuse address and port
+    int opt = 1;
+    if (setsockopt(this->client_fd_tcp, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+        std::cerr << "Set socket options failed" << std::endl;
+        exit(1);
+    }
 }
 
-// Bind the socket to the port
+/*
+    Bind the socket to the port
+*/
 void Client::bindSocketToPort(sockaddr_in* client_addr, uint16_t PORT, int fd)
 {
     memset(client_addr, 0, sizeof(*client_addr));
@@ -322,7 +308,9 @@ void Client::bindSocketToPort(sockaddr_in* client_addr, uint16_t PORT, int fd)
     }    
 }
 
-// construct the server addr
+/*
+    construct the server addr
+*/
 void Client::setServerAddr(const char* SERVER_IP, uint16_t SERVER_PORT)
 {
     this->server_addr;
@@ -340,7 +328,6 @@ void Client::sendUDPMessage(std::string message, sockaddr_in server_addr)
         close(this->client_fd_udp);
         return;
     }
-    return;
 }
 
 void Client::readFromUDPSocket(char* reply)
