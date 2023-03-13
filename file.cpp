@@ -43,9 +43,11 @@ int main(int argc, char** argv)
 
         client->createSocket();
         client->bindSocketToPort(&client->client_addr_udp, client->UDP_PORT,client->client_fd_udp);
+        //client->bindSocketToPort(&client->client_addr_tcp, client->TCP_PORT,client->client_fd_tcp);
         client->registerAccount();
 
         std::thread t(&Client::listenForResponse, client);
+        std::thread t2(&Client::handleTCPConnection, client);
 
         while(true)
         {
@@ -62,6 +64,9 @@ int main(int argc, char** argv)
             }
             else if(words[0]=="list"){
                 client->displayTable();
+            }else if(words[0]=="request"){
+                if(words.size()!=3) std::cout<<" >>> Incorrect Numebr of arguments"<<std::endl;
+                else client->requestFile(words[1], words[2]);
             }
             else{
                 std::cout<<"Your command cannot be understand"<<std::endl;

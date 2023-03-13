@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sstream>
+#include <fstream>
 
 #include "helper.h"
 
@@ -33,6 +34,8 @@ public:
     void offerFile(std::string words);
     void displayTable();
     void listenForResponse();
+    void requestFile(std::string filename, std::string client_name);
+    void handleTCPConnection();
 
     char* CLIENT_NAME;
     sockaddr_in client_addr_udp;
@@ -48,6 +51,157 @@ public:
     std::vector<std::string> filenames;
     std::string table;
 };
+
+void Client::handleTCPConnection()
+{
+    int server_fd, new_socket, valread;
+    struct sockaddr_in address;
+    int addrlen = sizeof(address);
+    char buffer[1024] = {0};
+
+    // Create a socket file descriptor
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        std::cerr << "Socket creation failed" << std::endl;
+        exit(1);
+    }
+
+    // Set socket options to reuse address and port
+    int opt = 1;
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+        std::cerr << "Set socket options failed" << std::endl;
+        exit(1);
+    }
+
+    // Bind the socket to a specific address and port
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(this->TCP_PORT);
+    std::cout << "Server listening on port " << this->TCP_PORT << std::endl;
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+        std::cerr << "Socket binding failed" << std::endl;
+        exit(1);
+    }
+
+    // Listen for incoming connections
+    if (listen(server_fd, 3) < 0) {
+        std::cerr << "Socket listening failed" << std::endl;
+        exit(1);
+    }
+
+    std::cout << "Server listening on port " << 8000 << std::endl;
+ 
+    while(true){
+        if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+            std::cerr << "Socket accept failed" << std::endl;
+            exit(0);
+        }
+
+        // Read data from the client
+        valread = read(new_socket, buffer, 1024);
+        std::cout << "Received from client: " << buffer << std::endl;
+
+        std::ifstream file(buffer, std::ios::binary);
+        if (file) {
+            // If the requested file exists, send it to the other client
+            while (file.good()) {
+                file.read(buffer, CLIENT_BUFFER_SIZE);
+                int bytesRead = file.gcount();
+                write(new_socket, buffer, bytesRead);
+            }
+            file.close();
+            const char* errorMsg = "File not found.";
+            write(new_socket, errorMsg, strlen(errorMsg));
+            std::cout << "11111111111 " << buffer << std::endl;
+        } else {
+            // If the requested file doesn't exist, send an error message
+            const char* errorMsg = "File not found.";
+            write(new_socket, errorMsg, strlen(errorMsg));
+            std::cout << "222222222222 " << buffer << std::endl;
+        }
+        
+        memset(buffer, 0, sizeof(buffer));
+        // Close the socket
+        close(new_socket);
+    }   
+}
+
+void Client::requestFile(std::string filename, std::string client_name)
+{
+    int new_socket= socket(AF_INET, SOCK_STREAM, 0);
+    if (new_socket == -1) {
+        std::cerr << "Failed to create socket." << std::endl;
+        exit(1);
+    }
+
+    uint16_t SERVER_PORT;
+    std::string SERVER_IP;
+    std::vector<std::string> words;
+    splitString(words, this->table, ' ');
+    for(int i = 0;i < words.size();i++){
+        if(words[i].substr(1,words[i].size()-1)==client_name){
+            SERVER_IP = words[i+1].c_str();
+            SERVER_PORT = std::stoi(words[i+2]);
+            break;
+        }
+    }
+
+    std::cout<<"IP is "<<SERVER_IP<<std::endl;
+    std::cout<<"Port is "<<SERVER_PORT<<std::endl;
+    sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server_addr.sin_port = htons(50013);
+
+    // Connecting to the server
+    if (connect(new_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        std::cout<<"Connection Failed"<<std::endl;
+        exit(1);
+    }
+
+    // Requesting files from other clients
+    while (1) {
+        // Sending the filename to the server to be forwarded to other clients
+        send(new_socket, filename.c_str(), filename.size(), 0);
+        
+        // Receiving the requested file from another client
+        int bytesReceived = 0;
+        int valread;
+        char buffer[CLIENT_BUFFER_SIZE];
+        memset(buffer, 0, sizeof(buffer));
+        std::ofstream file(filename, std::ios::binary);
+        while ((valread = read(new_socket, buffer, CLIENT_BUFFER_SIZE)) > 0) {
+            file.write(buffer, valread);
+            bytesReceived += valread;
+        }
+        file.close();
+        
+        if (bytesReceived == 0) {
+            // If no bytes were received, the other client either closed the connection or there was an error
+            const char* errorMsg = "No response from peer.";
+            std::cout << errorMsg << std::endl;
+            exit(1);
+        } else {
+            std::cout << "File received: " << filename << " (" << bytesReceived << " bytes)" << std::endl;
+            exit(1);
+        }
+    
+        /*
+        char buffer[1024] = {0};
+        int bytes_received = recv(new_socket, buffer, 1024, 0);
+        if (bytes_received < 0) {
+            std::cerr << "Failed to receive message from server." << std::endl;
+            exit(1);
+        }
+
+        std::cout << "Received message from server: " << buffer << std::endl;
+        exit(1);
+        */
+
+    }
+    // Close the socket
+    close(new_socket);
+}
 
 // This is a while loop that constantly listen for response from server
 // 1. registration success/fail 
