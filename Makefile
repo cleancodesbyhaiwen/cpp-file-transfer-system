@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-std=c++17 -pthread 
+CXXFLAGS=-std=c++17 -pthread -g
 
 SOURCES=file.cpp client.cpp helper.cpp server.cpp
 HEADERS=client.hpp helper.hpp server.hpp

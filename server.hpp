@@ -26,6 +26,7 @@ public:
     void sendMessage(std::string message, sockaddr_in server_addr);
     void handleRequest();
     bool handleRegistration(std::vector<std::string> content, char* CLIENT_IP, uint16_t UDP_PORT,sockaddr_in client_addr);
+    bool handleStatusChange(std::string CLIENT_NAME, bool status);
     bool handleFileOffer(std::vector<std::string> content, char* CLIENT_IP, uint16_t UDP_PORT);
     void sendTable(sockaddr_in client_addr);
     void broadcastTable();

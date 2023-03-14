@@ -17,44 +17,50 @@
 */
 void Client::handlePeerRequest()
 {
-    int new_socket, valread;
-    char buffer[CLIENT_BUFFER_SIZE];
-    int addrlen = sizeof(this->client_addr_tcp);
-    memset(buffer, 0, sizeof(buffer));
-    // Listen for incoming connections
-    if (listen(this->client_fd_tcp, 3) < 0) {
-        std::cerr << "Socket listening failed" << std::endl;
-        exit(1);
-    }
-    while(true){
-        // create scoket for serving file to peer
-        if ((new_socket = accept(this->client_fd_tcp, (struct sockaddr *)&this->client_addr_tcp, (socklen_t*)&addrlen)) < 0) {
-            std::cerr << "Socket accept failed" << std::endl;
-            exit(1);
-        }
-        // getting the file name requested
-        valread = read(new_socket, buffer, 1024);
-        std::cout << "Received from client request for: " << buffer << std::endl;
-        std::string file_path = std::string(this->dir) + "/" + std::string(buffer);
-        // If the requested file exists, send it to the peer
-        if (fileExists(file_path)) {
-            std::ifstream file(file_path, std::ios::binary);
-            while (file.good()) {
-                file.read(buffer, CLIENT_BUFFER_SIZE);
-                int bytesRead = file.gcount();
-                write(new_socket, buffer, bytesRead);
+    while(true)
+    {
+        if(this->status==true)
+        {
+            int new_socket, valread;
+            char buffer[CLIENT_BUFFER_SIZE];
+            int addrlen = sizeof(this->client_addr_tcp);
+            memset(buffer, 0, sizeof(buffer));
+            // Listen for incoming connections
+            if (listen(this->client_fd_tcp, 3) < 0) {
+                std::cerr << "Socket listening failed" << std::endl;
+                exit(1);
             }
-            file.close();
-        } else {
-            const char* errorMsg = "File not found.";
-            write(new_socket, errorMsg, strlen(errorMsg));
+            while(true){
+                // create scoket for serving file to peer
+                if ((new_socket = accept(this->client_fd_tcp, (struct sockaddr *)&this->client_addr_tcp, (socklen_t*)&addrlen)) < 0) {
+                    std::cerr << "Socket accept failed" << std::endl;
+                    exit(1);
+                }
+                // getting the file name requested
+                valread = read(new_socket, buffer, 1024);
+                std::cout << "  < Received from client request for: " << buffer << " > "<<std::endl;
+                std::string file_path = std::string(this->dir) + "/" + std::string(buffer);
+                // If the requested file exists, send it to the peer
+                if (fileExists(file_path)) {
+                    std::ifstream file(file_path, std::ios::binary);
+                    while (file.good()) {
+                        file.read(buffer, CLIENT_BUFFER_SIZE);
+                        int bytesRead = file.gcount();
+                        write(new_socket, buffer, bytesRead);
+                    }
+                    file.close();
+                } else {
+                    const char* errorMsg = "File not found.";
+                    write(new_socket, errorMsg, strlen(errorMsg));
+                }
+                memset(buffer, 0, sizeof(buffer));
+                // Close the socket
+                close(new_socket);
+                std::cout << " >>> ";
+                std::cout << std::flush;
+            } 
         }
-        memset(buffer, 0, sizeof(buffer));
-        // Close the socket
-        close(new_socket);
-        std::cout << " >>> ";
-        std::cout << std::flush;
-    }   
+    }
 }
 
 /*
@@ -97,6 +103,8 @@ void Client::requestFile(std::string filename, std::string client_name)
         std::cout<<" >>> Connection Failed, pelase try again"<<std::endl;
         return;
     }
+    std::cout<<"  < Connection with client "<<client_name<<" established. >"<<std::endl;
+    
     // Sending the filename to the serving peer
     send(new_socket, filename.c_str(), filename.size(), 0);
     // Receiving the requested file from another client
@@ -105,9 +113,10 @@ void Client::requestFile(std::string filename, std::string client_name)
     char buffer[CLIENT_BUFFER_SIZE];
     memset(buffer, 0, sizeof(buffer));
     std::ofstream file(filename, std::ios::binary);
+    std::cout<<"  < Downloading "<<filename<<" ... >"<<std::endl;
     while ((valread = read(new_socket, buffer, CLIENT_BUFFER_SIZE)) > 0) {
         if(buffer[0]=='F'){
-            std::cout << " >>> The server cannot find the file you requested" << std::endl;
+            std::cout << " The server cannot find the file you requested" << std::endl;
             return;
         }
         file.write(buffer, valread);
@@ -117,11 +126,11 @@ void Client::requestFile(std::string filename, std::string client_name)
     if (bytesReceived == 0) {
         std::cout << " >>> No response from peer or the file is empty." << std::endl;
     } else {
-        std::cout << " >>> File received: " << filename << " (" << bytesReceived << " bytes)" << std::endl;
+        std::cout << "  < "<<filename<<"("<<bytesReceived<<"bytes)"<<" downloaded successfully! > "<<std::endl;
     }
-
     // Close the socket
     close(new_socket);
+    std::cout << "  < Connection with "<<client_name<<" closed. >" << std::endl;
 }
 
 
@@ -141,19 +150,31 @@ void Client::handleServerResponse()
         splitString(words, response, ' ');
         if(words[0]=="registration"){
             if(words[1]=="success"){
-                std::cout<<" Welcome, you are registered! "<<std::endl;
+                std::cout<<" [Welcome, you are registered!] "<<std::endl;
             }else if(words[1]=="fail"){
-                std::cout<<" Registration failed. "<<std::endl;
+                std::cout<<" [Registration failed. Username taken] "<<std::endl;
             }
         }else if(words[0]=="offer"){
             if(words[1]=="success"){
-                std::cout<<" Offer Message received by Server. "<<std::endl;
+                std::cout<<" [Offer Message received by Server.] "<<std::endl;
             }
         }else if(words[0]=="table"){
             this->table = std::string(response).substr(6,strlen(response)-strlen("table "));
             std::cout<<" [Client table updated.]"<<std::endl;
             // send ACK to server
             this->sendUDPMessage("Updated Table Received", this->server_addr);
+        }else if(words[0]=="status"){
+            if(words[2]=="success"){
+                if(words[1]=="on"){
+                    this->status = true;
+                    std::cout<<" [Welcome back!] "<<std::endl;
+                }else{
+                    this->status = false;
+                    std::cout<<" [You are Offline. Bye. To register back, ENTER back client_name] "<<std::endl;
+                }
+            }else{
+                std::cout<<" [Status change failed. Please check if you entered the correct client name] "<<std::endl;
+            }
         }
         std::cout << " >>> ";
         std::cout << std::flush;
@@ -166,6 +187,23 @@ void Client::handleServerResponse()
 void Client::registerAccount()
 {
     std::string message = "registration " + std::string(this->CLIENT_NAME) + " " + std::to_string(this->TCP_PORT);
+    sendUDPMessage(message.c_str(), this->server_addr);
+}
+
+/*
+    send registration request to server
+*/
+void Client::changeStatus(std::string client_name, bool status)
+{
+    if(client_name.size()==0){
+        std::cout<<" [Usage: dereg/back client_name] "<<std::endl;
+    }
+    std::string message;
+    if(status==false){
+        message = "status off " + std::string(client_name);
+    }else{
+        message = "status on " + std::string(client_name);
+    }
     sendUDPMessage(message.c_str(), this->server_addr);
 }
 

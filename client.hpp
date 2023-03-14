@@ -13,11 +13,12 @@ public:
     {
         this->CLIENT_NAME = (char*)malloc(strlen(CLIENT_NAME)+1);
         std::strncpy(this->CLIENT_NAME, CLIENT_NAME, strlen(CLIENT_NAME)+1);
+        this->status = true;
     }
     ~Client()
     {
-        delete[] this->CLIENT_NAME;
-        delete[] this->dir;
+        free(this->CLIENT_NAME);
+        free(this->dir);
     }
     void createSocket();
     void bindSocketToPort(sockaddr_in* client_addr, uint16_t PORT, int fd);
@@ -31,19 +32,20 @@ public:
     void handleServerResponse();
     void requestFile(std::string filename, std::string client_name);
     void handlePeerRequest();
+    void changeStatus(std::string client_name, bool status);
 
     char* CLIENT_NAME;
     char* dir;
     sockaddr_in client_addr_udp;
     sockaddr_in client_addr_tcp;
+    sockaddr_in server_addr;
     int client_fd_udp;
     int client_fd_tcp;
     uint16_t UDP_PORT;
     uint16_t TCP_PORT;
     std::string table;
-    sockaddr_in server_addr;
-    // For server use
     bool status;
+    // For server use
     const char* CLIENT_IP;
     std::vector<std::string> filenames;
 };

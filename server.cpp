@@ -14,9 +14,9 @@
 #include "server.hpp"
 
 /*
-    This is the loop that constantly accpet and handle user request
-    The user request can either be REGISTRATION or FILE OFFERING
-*/
+ *    This is the loop that constantly accpet and handle user request
+ *    The user request can either be REGISTRATION or FILE OFFERING
+ */
 void Server::handleRequest()
 {
     char buffer[SERVER_BUFFER_SIZE];
@@ -30,9 +30,11 @@ void Server::handleRequest()
             close(this->server_fd);
             exit(1);
         }
-        // Convert string received to a vector of words, seperated by space
-        // Registration format: "registration client_name tcp_port"
-        // File offering format: "offer file1 file2 ..."
+        /*
+         *    Convert string received to a vector of words, seperated by space
+         *    Registration format: "registration client_name tcp_port"
+         *    File offering format: "offer file1 file2 ..."
+        */
         std::vector<std::string> request;
         splitString(request, std::string(buffer), ' ');
         // Registration
@@ -54,12 +56,23 @@ void Server::handleRequest()
                 this->broadcastTable();
             }
         }
+        // Change Status
+        else if(request[0]=="status")
+        {
+            bool status = (request[1]=="off") ? false : true;
+            if(handleStatusChange(request[2],status)){
+                this->sendMessage("status "+request[1]+" success", client_addr);
+                this->broadcastTable();
+            }else{
+                this->sendMessage("status change failed", client_addr);
+            }
+        }
     }
 }
 
 
 /*
-    Add client to this->clients
+ *    Add client to this->clients
 */
 bool Server::handleRegistration(std::vector<std::string> request, char* CLIENT_IP, uint16_t CLIENT_UDP_PORT,sockaddr_in client_addr)
 {
@@ -85,9 +98,22 @@ bool Server::handleRegistration(std::vector<std::string> request, char* CLIENT_I
     return true;
 }
 
+/*
+ *    set client's staus to false
+*/
+bool Server::handleStatusChange(std::string CLIENT_NAME, bool status)
+{
+    for(const auto& client : this->clients){
+        if(std::strcmp(client->CLIENT_NAME,CLIENT_NAME.c_str())==0){
+            client->status = status;
+            return true;
+        } 
+    }
+    return false;
+}
 
 /*
-    Add filenames offered by client to client->filenames 
+ *    Add filenames offered by client to client->filenames 
 */
 bool Server::handleFileOffer(std::vector<std::string> request, char* CLIENT_IP, uint16_t UDP_PORT)
 {
@@ -106,25 +132,27 @@ bool Server::handleFileOffer(std::vector<std::string> request, char* CLIENT_IP, 
 }
 
 /*
-    send current version of table to a client
+ *    send current version of table to a client
 */
 void Server::sendTable(sockaddr_in client_addr)
 {
     std::string table = "table "; 
     for(const auto& client : this->clients){
-        if(client->filenames.size()!=0){
-            table += "*" + std::string(client->CLIENT_NAME) + " ";
-            table += std::string(client->CLIENT_IP) + " " + std::to_string(client->TCP_PORT) + " ";
-        }
-        for(const auto& file : client->filenames){
-            table += (file + " ");
+        if(client->status==true){
+            if(client->filenames.size()!=0){
+                table += "*" + std::string(client->CLIENT_NAME) + " ";
+                table += std::string(client->CLIENT_IP) + " " + std::to_string(client->TCP_PORT) + " ";
+            }
+            for(const auto& file : client->filenames){
+                table += (file + " ");
+            }
         }
     }
     sendMessage(table, client_addr);
 }
 
 /*
-    send current version of table to all online clients
+ *    send current version of table to all online clients
 */
 void Server::broadcastTable()
 {

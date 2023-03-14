@@ -80,8 +80,11 @@ int main(int argc, char** argv)
                 catch (std::exception& e) {
                     std::cout << " >>> Usage: request filename client_name" << std::endl;
                 }
-            }
-            else{
+            }else if(words[0]=="dereg"){
+                client->changeStatus(words[1], false);
+            }else if(words[0]=="back"){
+                client->changeStatus(words[1], true);
+            }else{
                 std::cout<<" >>> Your command cannot be understand"<<std::endl;
             }
         }
