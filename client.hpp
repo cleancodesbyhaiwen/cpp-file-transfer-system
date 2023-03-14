@@ -27,7 +27,7 @@ public:
     void readFromUDPSocket(char* reply);
     void registerAccount();
     void setDir(const char* dir);
-    void offerFile(std::string words);
+    void offerFile(std::vector<std::string>& words);
     void displayTable();
     void handleServerResponse();
     void requestFile(std::string filename, std::string client_name);

@@ -12,8 +12,8 @@
 #include "helper.hpp"
 
 /*
-    This is the function constantly listen on TCP welcome socket 
-    and handle peer's file request
+ *   This is the function constantly listen on TCP welcome socket 
+ *   and handle peer's file request
 */
 void Client::handlePeerRequest()
 {
@@ -54,7 +54,7 @@ void Client::handlePeerRequest()
         memset(buffer, 0, sizeof(buffer));
         // Close the socket
         close(new_socket);
-        std::cout << " >>> ";
+        std::cout << ">>> ";
         std::cout << std::flush;
     } 
 
@@ -72,8 +72,10 @@ void Client::requestFile(std::string filename, std::string client_name)
         std::cerr << "Failed to create new socket." << std::endl;
         exit(1);
     }
-    // Resolving the peer IP and port given his/her client nanme
-    // Also check if the file is indeed offered by him/her 
+    /*
+     *    Resolving the peer IP and port given his/her client nanme
+     *    Also check if the file is indeed offered by him/her 
+    */
     uint16_t SERVER_PORT;
     const char* SERVER_IP;
     std::vector<std::string> words;
@@ -85,7 +87,7 @@ void Client::requestFile(std::string filename, std::string client_name)
         SERVER_PORT = std::stoi(words[static_cast<int>(std::distance(words.begin(), result))+2]);
     }
     else {
-        std::cout << " >>> The client name cannot be found in the table" << std::endl;
+        std::cout << ">>> [The client name cannot be found in the table]" << std::endl;
         return;
     }
 
@@ -97,12 +99,14 @@ void Client::requestFile(std::string filename, std::string client_name)
     server_addr.sin_port = htons(SERVER_PORT);
     // establish connection to the serving peer
     if (connect(new_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        std::cout<<" >>> Connection Failed, pelase try again"<<std::endl;
+        std::cout<< "\033[31m" <<"  < Connection Failed, pelase try again >"<<"\033[0m" <<std::endl;
         return;
     }
     std::cout<<"  < Connection with client "<<client_name<<" established. >"<<std::endl;
     
     // Sending the filename to the serving peer
+    size_t index = filename.find('(');
+    filename = filename.substr(0,index-1);
     send(new_socket, filename.c_str(), filename.size(), 0);
     // Receiving the requested file from another client
     int bytesReceived = 0;
@@ -113,7 +117,7 @@ void Client::requestFile(std::string filename, std::string client_name)
     std::cout<<"  < Downloading "<<filename<<" ... >"<<std::endl;
     while ((valread = read(new_socket, buffer, CLIENT_BUFFER_SIZE)) > 0) {
         if(buffer[0]=='F'){
-            std::cout << " The server cannot find the file you requested" << std::endl;
+            std::cout << ">>> "<< "\033[31m"<<"[The server cannot find the file you requested]" << "\033[0m" <<std::endl;
             return;
         }
         file.write(buffer, valread);
@@ -121,9 +125,9 @@ void Client::requestFile(std::string filename, std::string client_name)
     }
     file.close();
     if (bytesReceived == 0) {
-        std::cout << " >>> No response from peer or the file is empty." << std::endl;
+        std::cout << ">>> [No response from peer or the file is empty.]" << std::endl;
     } else {
-        std::cout << "  < "<<filename<<"("<<bytesReceived<<"bytes)"<<" downloaded successfully! > "<<std::endl;
+        std::cout << "\033[32m"<< "  < "<<filename<<"("<<bytesReceived<<"bytes)"<<" downloaded successfully! > "<<"\033[0m" <<std::endl;
     }
     // Close the socket
     close(new_socket);
@@ -147,33 +151,33 @@ void Client::handleServerResponse()
         splitString(words, response, ' ');
         if(words[0]=="registration"){
             if(words[1]=="success"){
-                std::cout<<" [Welcome, you are registered!] "<<std::endl;
+                std::cout<<"[Welcome, you are registered!] "<<std::endl;
             }else if(words[1]=="fail"){
                 std::cout<<" [Registration failed. Username taken] "<<std::endl;
             }
         }else if(words[0]=="offer"){
             if(words[1]=="success"){
-                std::cout<<" [Offer Message received by Server.] "<<std::endl;
+                std::cout<<"[Offer Message received by Server.] "<<std::endl;
             }
         }else if(words[0]=="table"){
             this->table = std::string(response).substr(6,strlen(response)-strlen("table "));
-            std::cout<<" [Client table updated.]"<<std::endl;
+            std::cout<<"[Client table updated.]"<<std::endl;
             // send ACK to server
             this->sendUDPMessage("Updated Table Received", this->server_addr);
         }else if(words[0]=="status"){
             if(words[2]=="success"){
                 if(words[1]=="on"){
                     this->status = true;
-                    std::cout<<" [Welcome back!] "<<std::endl;
+                    std::cout<<"[Welcome back!] "<<std::endl;
                 }else{
                     this->status = false;
-                    std::cout<<" [You are Offline. Bye. To register back, ENTER back client_name] "<<std::endl;
+                    std::cout<<"[You are Offline. Bye. To register back, ENTER back client_name] "<<std::endl;
                 }
             }else{
-                std::cout<<" [Status change failed. Please check if you entered the correct client name] "<<std::endl;
+                std::cout<<"[Status change failed. Please check if you entered the correct client name] "<<std::endl;
             }
         }
-        std::cout << " >>> ";
+        std::cout << ">>> ";
         std::cout << std::flush;
     }
 }
@@ -193,7 +197,7 @@ void Client::registerAccount()
 void Client::changeStatus(std::string client_name, bool status)
 {
     if(client_name.size()==0){
-        std::cout<<" [Usage: dereg/back client_name] "<<std::endl;
+        std::cout<<"[Usage: dereg/back client_name] "<<std::endl;
     }
     std::string message;
     if(status==false){
@@ -207,12 +211,27 @@ void Client::changeStatus(std::string client_name, bool status)
 /*
  *   Send file offering request to server
 */
-void Client::offerFile(std::string words){
+void Client::offerFile(std::vector<std::string>& words){
     if(this->dir==nullptr){
-        std::cout<<" >>> Please set a dir for files to share before offering files"<<std::endl;
+        std::cout<<">>> [Please set a dir for files to share before offering files]"<<std::endl;
         return;
     }
-    this->sendUDPMessage(words.c_str(), this->server_addr);
+    std::string file_path;
+    std::string message = "offer";
+    for(int i = 1;i < words.size();i++){
+        file_path = std::string(this->dir) + "/" + std::string(words[i]);
+        if (fileExists(file_path)){
+            size_t file_size = getFileSize(file_path);
+            message += " " + (words[i]) + "(" + std::to_string(file_size) + "bytes)";
+        }else{
+            std::cout<<">>> "<< "\033[31m"<<"["<<words[i]<<"> does not exist.]"<<"\033[0m" <<std::endl;
+        }
+    }
+    if(message.size()>5){
+        this->sendUDPMessage(message.c_str(), this->server_addr);
+    }else{
+        std::cout<<">>> [Nothing offered.]"<<std::endl;
+    }
 }
 
 /*
@@ -221,15 +240,15 @@ void Client::offerFile(std::string words){
 void Client::setDir(const char* dir)
 {
     if(dir==nullptr){
-        std::cout << " >>> [Usage: setdir [directory name].]" <<std::endl;
+        std::cout << ">>> [Usage: setdir <directory name>.]" <<std::endl;
         return;
     }
     if(directoryExists(dir)) {
         this->dir = (char*)malloc(strlen(dir)+1);
         std::strncpy(this->dir, dir, strlen(dir)+1);
-        std::cout << " >>> [Successfully set "<< dir <<" as the directory for searching offered files.]" << std::endl;
+        std::cout << ">>> [Successfully set <"<< dir <<"> as the directory for searching offered files.]" << std::endl;
     } else {
-        std::cout << " >>> [setdir failed: <dir> does not exist.]" <<std::endl;
+        std::cout << ">>> [setdir failed: <dir> does not exist.]" <<std::endl;
     }
 }
 
@@ -241,24 +260,29 @@ void Client::setDir(const char* dir)
 void Client::displayTable()
 {
     if(this->table.size() != 0){
+        int clients_total = 0;
+        int files_total = 0;
         std::vector<std::string> entries;
         splitString(entries, this->table, '*');
+        std::cout<<"=============================="<<std::endl;
         for(auto entry = entries.begin() + 1;entry != entries.end();entry++){
+            clients_total++;
             std::vector<std::string> elements;
             splitString(elements, *entry, ' ');
-            std::cout<<"===================="<<std::endl;
-            std::cout<<"Client Name: "<<elements[0]<<std::endl;
-            std::cout<<"Client IP: "<<elements[1]<<std::endl;
-            std::cout<<"Client Port: "<<elements[2]<<std::endl;
-            std::cout<<"Client Files: ";
+            std::cout<<"|| Client Name:      "<<elements[0]<<std::endl;
+            std::cout<<"|| Client IP:        "<<elements[1]<<std::endl;
+            std::cout<<"|| Client Port:      "<<elements[2]<<std::endl;
+            std::cout<<"|| Client Files:     ";
             for(int i =3;i < elements.size();i++){
+                files_total++;
                 std::cout<<elements[i]<<" ";
             }
             std::cout<<std::endl;
-            std::cout<<"===================="<<std::endl;
+            std::cout<<"=============================="<<std::endl;
         }
+        std::cout<<"Clients Total: "<<clients_total<<"  Files total: "<<files_total<<std::endl;
     }else{
-        std::cout<<" >>> [No files available for download at the moment.]"<<std::endl;
+        std::cout<<">>> [No files available for download at the moment.]"<<std::endl;
     }
 }
 

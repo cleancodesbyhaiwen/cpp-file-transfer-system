@@ -23,3 +23,9 @@ void splitString(std::vector<std::string> &words, std::string command, char deli
 
 // Check whether a given directory exist in the file system
 bool directoryExists(const char* path);
+
+// Disply a list of commands the user can input
+void displayCommandList();
+
+// Get the size of a file given the file path
+size_t getFileSize(std::string file_path);

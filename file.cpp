@@ -29,8 +29,6 @@ int main(int argc, char** argv)
     const char* MODE = determineMode(argv);
     if(std::strcmp(MODE, "SERVER")==0)
     {
-        std::cout<<"You are in **SERVER** mode"<<std::endl;
-
         serverModeArgumentsCheck(argc,argv);
         Server* server = new Server(argv[2]);
         server->createSocket();
@@ -45,8 +43,6 @@ int main(int argc, char** argv)
     }
     else if(std::strcmp(MODE, "CLIENT")==0)
     {
-        std::cout<<"You are in **CLIENT** mode"<<std::endl;
-
         clientModeArgumentsCheck(argc, argv);
         Client* client = new Client(argv[5],argv[6], argv[2]);
         client->setServerAddr(argv[3], atoi(argv[4]));
@@ -58,10 +54,11 @@ int main(int argc, char** argv)
         std::thread t1(&Client::handleServerResponse, client);
         std::thread t2(&Client::handlePeerRequest, client);
 
+        std::cout << ">>> [You can enter <help> to see a list of commands]"  << std::endl;
         while(true)
         {
             std::string command;
-            std::cout << " >>> ";
+            std::cout << ">>> ";
             std::getline(std::cin, command);
             std::vector<std::string> words;
             splitString(words, command, ' ');
@@ -69,7 +66,7 @@ int main(int argc, char** argv)
                 client->setDir(words[1].c_str());
             }
             else if(words[0]=="offer"){
-                client->offerFile(command);
+                client->offerFile(words);
             }
             else if(words[0]=="list"){
                 client->displayTable();
@@ -78,14 +75,16 @@ int main(int argc, char** argv)
                     client->requestFile(words[1], words[2]);
                 }
                 catch (std::exception& e) {
-                    std::cout << " >>> Usage: request filename client_name" << std::endl;
+                    std::cout << ">>> [Usage: request <filename> <client_name>]" << std::endl;
                 }
             }else if(words[0]=="dereg"){
                 client->changeStatus(words[1], false);
             }else if(words[0]=="back"){
                 client->changeStatus(words[1], true);
+            }else if(words[0]=="help"){
+                displayCommandList();   
             }else{
-                std::cout<<" >>> Your command cannot be understand"<<std::endl;
+                std::cout<<">>> [Your command cannot be understand]"<<std::endl;
             }
         }
         // Close the sockets and free memory
