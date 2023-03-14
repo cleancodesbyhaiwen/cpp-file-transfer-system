@@ -17,55 +17,52 @@
 */
 void Client::handlePeerRequest()
 {
-    while(true)
-    {
-        if(this->status==true)
-        {
-            int new_socket, valread;
-            char buffer[CLIENT_BUFFER_SIZE];
-            int addrlen = sizeof(this->client_addr_tcp);
-            memset(buffer, 0, sizeof(buffer));
-            // Listen for incoming connections
-            if (listen(this->client_fd_tcp, 3) < 0) {
-                std::cerr << "Socket listening failed" << std::endl;
-                exit(1);
-            }
-            while(true){
-                // create scoket for serving file to peer
-                if ((new_socket = accept(this->client_fd_tcp, (struct sockaddr *)&this->client_addr_tcp, (socklen_t*)&addrlen)) < 0) {
-                    std::cerr << "Socket accept failed" << std::endl;
-                    exit(1);
-                }
-                // getting the file name requested
-                valread = read(new_socket, buffer, 1024);
-                std::cout << "  < Received from client request for: " << buffer << " > "<<std::endl;
-                std::string file_path = std::string(this->dir) + "/" + std::string(buffer);
-                // If the requested file exists, send it to the peer
-                if (fileExists(file_path)) {
-                    std::ifstream file(file_path, std::ios::binary);
-                    while (file.good()) {
-                        file.read(buffer, CLIENT_BUFFER_SIZE);
-                        int bytesRead = file.gcount();
-                        write(new_socket, buffer, bytesRead);
-                    }
-                    file.close();
-                } else {
-                    const char* errorMsg = "File not found.";
-                    write(new_socket, errorMsg, strlen(errorMsg));
-                }
-                memset(buffer, 0, sizeof(buffer));
-                // Close the socket
-                close(new_socket);
-                std::cout << " >>> ";
-                std::cout << std::flush;
-            } 
-        }
+
+    int new_socket, valread;
+    char buffer[CLIENT_BUFFER_SIZE];
+    int addrlen = sizeof(this->client_addr_tcp);
+    memset(buffer, 0, sizeof(buffer));
+    // Listen for incoming connections
+    if (listen(this->client_fd_tcp, 3) < 0) {
+        std::cerr << "Socket listening failed" << std::endl;
+        exit(1);
     }
+    // Listen for peer request if status is true
+    while(this->status){
+        // create scoket for serving file to peer
+        if ((new_socket = accept(this->client_fd_tcp, (struct sockaddr *)&this->client_addr_tcp, (socklen_t*)&addrlen)) < 0) {
+            std::cerr << "Socket accept failed" << std::endl;
+            exit(1);
+        }
+        // getting the file name requested
+        valread = read(new_socket, buffer, 1024);
+        std::cout << "  < Received from client request for: " << buffer << " > "<<std::endl;
+        std::string file_path = std::string(this->dir) + "/" + std::string(buffer);
+        // If the requested file exists, send it to the peer
+        if (fileExists(file_path)) {
+            std::ifstream file(file_path, std::ios::binary);
+            while (file.good()) {
+                file.read(buffer, CLIENT_BUFFER_SIZE);
+                int bytesRead = file.gcount();
+                write(new_socket, buffer, bytesRead);
+            }
+            file.close();
+        } else {
+            const char* errorMsg = "File not found.";
+            write(new_socket, errorMsg, strlen(errorMsg));
+        }
+        memset(buffer, 0, sizeof(buffer));
+        // Close the socket
+        close(new_socket);
+        std::cout << " >>> ";
+        std::cout << std::flush;
+    } 
+
 }
 
 /*
-    This function send file request to peer and receive file and store the file 
-    to the same directory
+ *   This function send file request to peer and receive file and store the file 
+ *   to the same directory
 */
 void Client::requestFile(std::string filename, std::string client_name)
 {
@@ -135,10 +132,10 @@ void Client::requestFile(std::string filename, std::string client_name)
 
 
 /*
-    This is a while loop that constantly listen for response from server
-    1. registration success/fail 
-    2. offer file success
-    3. receive updated table
+ *   This is a while loop that constantly listen for response from server
+ *   1. registration success/fail 
+ *   2. offer file success
+ *   3. receive updated table
 */
 void Client::handleServerResponse()
 {
@@ -182,7 +179,7 @@ void Client::handleServerResponse()
 }
 
 /*
-    send registration request to server
+ *   send registration request to server
 */
 void Client::registerAccount()
 {
@@ -191,7 +188,7 @@ void Client::registerAccount()
 }
 
 /*
-    send registration request to server
+ *   send registration request to server
 */
 void Client::changeStatus(std::string client_name, bool status)
 {
@@ -208,7 +205,7 @@ void Client::changeStatus(std::string client_name, bool status)
 }
 
 /*
-    Send file offering request to server
+ *   Send file offering request to server
 */
 void Client::offerFile(std::string words){
     if(this->dir==nullptr){
@@ -219,7 +216,7 @@ void Client::offerFile(std::string words){
 }
 
 /*
-    set the file offering directory
+ *   set the file offering directory
 */
 void Client::setDir(const char* dir)
 {
@@ -237,9 +234,9 @@ void Client::setDir(const char* dir)
 }
 
 /*
-    display current version of file table
-    table format: "*haiwen 127.0.0.1 50013 h1.txt h2.txt *peter 127.0.0.1 50015 p1.txt"
-    entries are seperated by "*", elements in entries are seperated by [SPACE]
+ *   display current version of file table
+ *   table format: "*haiwen 127.0.0.1 50013 h1.txt h2.txt *peter 127.0.0.1 50015 p1.txt"
+ *   entries are seperated by "*", elements in entries are seperated by [SPACE]
 */
 void Client::displayTable()
 {
@@ -266,7 +263,7 @@ void Client::displayTable()
 }
 
 /*
-    Create the TCP and UDP socket
+ *   Create the TCP and UDP socket
 */
 void Client::createSocket()
 {
@@ -289,7 +286,7 @@ void Client::createSocket()
 }
 
 /*
-    Bind the socket to the port
+ *   Bind the socket to the port
 */
 void Client::bindSocketToPort(sockaddr_in* client_addr, uint16_t PORT, int fd)
 {
@@ -305,7 +302,7 @@ void Client::bindSocketToPort(sockaddr_in* client_addr, uint16_t PORT, int fd)
 }
 
 /*
-    construct the server addr
+ *   construct the server addr
 */
 void Client::setServerAddr(const char* SERVER_IP, uint16_t SERVER_PORT)
 {
