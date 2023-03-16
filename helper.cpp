@@ -12,14 +12,14 @@
 bool fileExists(const std::string& filename)
 {
     struct stat buf;
-    if (stat(filename.c_str(), &buf) != -1)
-    {
+    if (stat(filename.c_str(), &buf) != -1){
         return true;
     }
     return false;
 }
 
-bool isValidIPAddress(const char* ipAddress) {
+bool isValidIPAddress(const char* ipAddress) 
+{
     struct sockaddr_in sa = {0};
     int result = inet_pton(AF_INET, ipAddress, &(sa.sin_addr));
     return result != 0;
@@ -83,14 +83,16 @@ void splitString(std::vector<std::string> &words, std::string command, char deli
     }
 }
 
-bool directoryExists(const char* path) {
-  DIR* dir = opendir(path);
-  if (dir != nullptr) {
-    closedir(dir);
-    return true;
-  } else {
-    return false;
-  }
+bool directoryExists(const char* path) 
+{
+    DIR* dir = opendir(path);
+    if (dir != nullptr) {
+        closedir(dir);
+        return true;
+    } 
+    else {
+        return false;
+    }
 }
 
 void displayCommandList()
@@ -116,3 +118,26 @@ size_t getFileSize(std::string file_path)
     fclose(file);
     return file_size;
 }
+
+void printMsg(std::string msg, char type, char color)
+{
+    std::string color_code;
+    switch(color){
+        case 'r':
+            color_code = "\033[31m";
+            break;
+        case 'g':
+            color_code = "\033[32m";
+            break;
+        default:
+            color_code = "";
+            break;
+    }
+    if(type=='a'){
+        std::cout<<color_code<<"<"<<msg<<">"<<"\033[0m"<<std::endl;
+    }
+    else if(type=='s'){
+        std::cout<<color_code<<"["<<msg<<"]"<<"\033[0m"<<std::endl;
+    }
+}
+

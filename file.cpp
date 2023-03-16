@@ -2,6 +2,7 @@
  * Program Name: CPP File Sharing System
  * Author: Haiwen Zhang
  * Date Created: 2023/3/10
+ * Last Modified: 2023/3/16
  * Description: 
  *         This program runs in two modes: server and client
  *         Server: The server accept registration request and file offerings from client
@@ -19,6 +20,7 @@
 #include <unistd.h>
 #include <string>
 #include <thread>
+#include <stdexcept>
 
 #include "client.hpp"
 #include "server.hpp"
@@ -35,8 +37,6 @@ int main(int argc, char** argv)
         server->bindSocketToPort();
         server->handleRequest();
 
-        // close socket and free memory
-        close(server->server_fd);
         delete server;
 
         return 0;
@@ -47,18 +47,17 @@ int main(int argc, char** argv)
         Client* client = new Client(argv[5],argv[6], argv[2]);
         client->setServerAddr(argv[3], atoi(argv[4]));
         client->createSocket();
-        client->bindSocketToPort(&client->client_addr_udp, client->UDP_PORT,client->client_fd_udp);
-        client->bindSocketToPort(&client->client_addr_tcp, client->TCP_PORT,client->client_fd_tcp);
-        client->registerAccount();
-
+        client->bindSocketToPort(&client->client_addr_udp, client->client_udp_port,client->client_fd_udp);
+        client->bindSocketToPort(&client->client_addr_tcp, client->client_tcp_port,client->client_fd_tcp);
+        
         std::thread t1(&Client::handleServerResponse, client);
         std::thread t2(&Client::handlePeerRequest, client);
 
-        std::cout << ">>> [You can enter <help> to see a list of commands]"  << std::endl;
+        client->registerAccount();
+
         while(true)
         {
             std::string command;
-            std::cout << ">>> ";
             std::getline(std::cin, command);
             std::vector<std::string> words;
             splitString(words, command, ' ');
@@ -70,26 +69,40 @@ int main(int argc, char** argv)
             }
             else if(words[0]=="list"){
                 client->displayTable();
-            }else if(words[0]=="request"){
+            }
+            else if(words[0]=="request"){
                 try {
                     client->requestFile(words[1], words[2]);
+                    if(words[2].size()==0) throw std::runtime_error("");
                 }
                 catch (std::exception& e) {
-                    std::cout << ">>> [Usage: request <filename> <client_name>]" << std::endl;
+                    printMsg("Usage: request <filename> <client_name>", 's', 'w');
                 }
-            }else if(words[0]=="dereg"){
-                client->changeStatus(words[1], false);
-            }else if(words[0]=="back"){
-                client->changeStatus(words[1], true);
-            }else if(words[0]=="help"){
+            }
+            else if(words[0]=="dereg"){
+                try {
+                    client->changeStatus(words[1], false);
+                }
+                catch (std::exception& e) {
+                    printMsg("Usage: dereg <client_name>", 's', 'w');
+                }
+            }
+            else if(words[0]=="back"){
+                try {
+                    client->changeStatus(words[1], true);
+                }
+                catch (std::exception& e) {
+                    printMsg("Usage: dereg <client_name>", 's', 'w');
+                }
+            }
+            else if(words[0]=="help"){
                 displayCommandList();   
-            }else{
-                std::cout<<">>> [Your command cannot be understand]"<<std::endl;
+            }
+            else{
+                printMsg("Your command cannot be understand", 's', 'w');
             }
         }
-        // Close the sockets and free memory
-        close(client->client_fd_udp);
-        close(client->client_fd_tcp);
+        
         delete client;
 
         return 0;

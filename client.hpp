@@ -9,21 +9,23 @@
 class Client {
 private: 
 public:
-    Client(const char* UDP_PORT, const char* TCP_PORT, const char* CLIENT_NAME) : UDP_PORT(atoi(UDP_PORT)), TCP_PORT(atoi(TCP_PORT))
+    Client(const char* client_udp_port, const char* client_tcp_port, const char* client_name) : client_udp_port(atoi(client_udp_port)), client_tcp_port(atoi(client_tcp_port))
     {
-        this->CLIENT_NAME = (char*)malloc(strlen(CLIENT_NAME)+1);
-        std::strncpy(this->CLIENT_NAME, CLIENT_NAME, strlen(CLIENT_NAME)+1);
+        this->client_name = (char*)malloc(strlen(client_name)+1);
+        std::strncpy(this->client_name, client_name, strlen(client_name)+1);
         this->status = true;
     }
     ~Client()
     {
-        free(this->CLIENT_NAME);
+        free(this->client_name);
         free(this->dir);
+        close(this->client_fd_udp);
+        close(this->client_fd_tcp);
     }
     void createSocket();
     void bindSocketToPort(sockaddr_in* client_addr, uint16_t PORT, int fd);
     void setServerAddr(const char* SERVER_IP, uint16_t SERVER_PORT);
-    void sendUDPMessage(std::string message, sockaddr_in server_addr);
+    bool sendUDPMessage(std::string message, sockaddr_in server_addr);
     void readFromUDPSocket(char* reply);
     void registerAccount();
     void setDir(const char* dir);
@@ -34,19 +36,19 @@ public:
     void handlePeerRequest();
     void changeStatus(std::string client_name, bool status);
 
-    char* CLIENT_NAME;
+    char* client_name;
     char* dir;
     sockaddr_in client_addr_udp;
     sockaddr_in client_addr_tcp;
     sockaddr_in server_addr;
     int client_fd_udp;
     int client_fd_tcp;
-    uint16_t UDP_PORT;
-    uint16_t TCP_PORT;
+    uint16_t client_udp_port;
+    uint16_t client_tcp_port;
     std::string table;
     bool status;
     // For server use
-    const char* CLIENT_IP;
+    const char* client_ip;
     std::vector<std::string> filenames;
 };
 
