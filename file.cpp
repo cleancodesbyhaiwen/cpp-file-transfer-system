@@ -10,7 +10,7 @@
  *                 It broadcast to all clients registered whenever the table is updated.
  *         Client: The client can consult with the table and initiate file request to the peers
  *                 It also constantly waits for peers' requests and send the files
- * Permission: You are free to use this program. add 
+ * Permission: You are free to use this program.  
  */
 #include <iostream>
 #include <cstring>
